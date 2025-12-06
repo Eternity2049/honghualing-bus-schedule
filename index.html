@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HITSZ ↔ Honghualing Bus Schedule</title>
+    <style>
+        :root {
+            --color-primary: #2180D6;
+            --color-primary-hover: #1A68B0;
+            --color-bg: #f5f5f5;
+            --color-surface: #ffffff;
+            --color-text: #1a1a1a;
+            --color-text-light: #666;
+            --color-border: #ddd;
+            --color-departed: #ccc;
+            --color-success: #22C55E;
+            --color-warning: #FF9800;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            padding: 16px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: var(--color-surface);
+            border-radius: 12px;
+            padding: 24px 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 16px;
+            color: var(--color-primary);
+            font-weight: 600;
+        }
+
+        .datetime-display {
+            font-size: 18px;
+            color: var(--color-text-light);
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .datetime-display .time {
+            color: var(--color-primary);
+            font-weight: 700;
+            font-size: 24px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--color-border);
+            color: var(--color-text);
+        }
+
+        .btn.active {
+            background: var(--color-primary);
+            color: white;
+        }
+
+        .btn:hover:not(.active) {
+            background: #ccc;
+        }
+
+        .content-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .content-wrapper {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .datetime-display .time {
+                font-size: 20px;
+            }
+        }
+
+        .direction-card {
+            background: var(--color-surface);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .direction-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--color-primary);
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--color-border);
+        }
+
+        .schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .schedule-table th {
+            background: #f9f9f9;
+            padding: 10px;
+            text-align: center;
+            font-weight: 600;
+            color: var(--color-text);
+            border-bottom: 2px solid var(--color-border);
+        }
+
+        .schedule-table td {
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .schedule-table tr:hover {
+            background: #fafafa;
+        }
+
+        .time-cell {
+            font-weight: 500;
+        }
+
+        .status-cell {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--color-success);
+        }
+
+        .time-cell.departed {
+            color: var(--color-departed);
+            text-decoration: line-through;
+        }
+
+        .status-cell.departed {
+            color: var(--color-departed);
+        }
+
+        .departure-cell {
+            color: var(--color-warning);
+            font-weight: 700;
+        }
+
+        .upcoming {
+            background: rgba(33, 128, 214, 0.05);
+        }
+
+        .footer {
+            text-align: center;
+            color: var(--color-text-light);
+            font-size: 12px;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--color-border);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --color-bg: #1a1a1a;
+                --color-surface: #2d2d2d;
+                --color-text: #e0e0e0;
+                --color-text-light: #999;
+                --color-border: #444;
+                --color-departed: #666;
+            }
+
+            .schedule-table tr:hover {
+                background: #363636;
+            }
+
+            .schedule-table th {
+                background: #363636;
+            }
+
+            .upcoming {
+                background: rgba(33, 128, 214, 0.15);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>HITSZ ↔ Honghualing</h1>
+            <div class="datetime-display">
+                <div><span class="time" id="current-time">00:00:00</span></div>
+                <div id="current-date">Loading...</div>
+            </div>
+            <div class="button-group">
+                <button class="btn active" onclick="switchSchedule('workday')">Workday</button>
+                <button class="btn" onclick="switchSchedule('weekend')">Weekend/Holiday</button>
+            </div>
+        </div>
+
+        <div class="content-wrapper">
+            <div class="direction-card">
+                <div class="direction-title">HITSZ → Honghualing</div>
+                <table class="schedule-table" id="schedule-hh">
+                    <thead>
+                        <tr>
+                            <th>Depart from HIT Square</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedule-hh-body"></tbody>
+                </table>
+            </div>
+
+            <div class="direction-card">
+                <div class="direction-title">Honghualing → HITSZ</div>
+                <table class="schedule-table" id="schedule-zh">
+                    <thead>
+                        <tr>
+                            <th>Depart from Courier Frontdoor</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedule-zh-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="footer">
+            Last updated: <span id="last-update">Now</span> | All rights owned by Arthur
+        </div>
+    </div>
+
+    <script>
+        // Helper function to generate interval times
+        function generateIntervalTimes(startTime, endTime, intervalMin) {
+            const [startH, startM] = startTime.split(':').map(Number);
+            const [endH, endM] = endTime.split(':').map(Number);
+            
+            const startTotal = startH * 60 + startM;
+            const endTotal = endH * 60 + endM;
+            
+            const times = [];
+            for (let current = startTotal; current <= endTotal; current += intervalMin) {
+                const h = Math.floor(current / 60);
+                const m = current % 60;
+                times.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+            }
+            return times;
+        }
+
+        // Schedule data - Workday
+        const workdaySchedule = {
+            hitsz_to_hong: [
+                ...generateIntervalTimes('07:30', '09:30', 10).map(time => ({ from: 'HIT Square', time, note: 'Peak Hours' })),
+                { from: 'HIT Square', time: '10:00', note: '' },
+                { from: 'HIT Square', time: '10:30', note: '' },
+                { from: 'HIT Square', time: '11:00', note: '' },
+                { from: 'HIT Square', time: '11:30', note: '' },
+                ...generateIntervalTimes('12:20', '15:40', 10).map(time => ({ from: 'HIT Square', time, note: 'Peak Hours' })),
+                { from: 'HIT Square', time: '16:00', note: '(2 buses)' },
+                { from: 'HIT Square', time: '16:30', note: '' },
+                { from: 'HIT Square', time: '17:00', note: '' },
+                ...generateIntervalTimes('17:30', '18:45', 15).map(time => ({ from: 'HIT Square', time, note: '' })),
+                { from: 'HIT Square', time: '19:00', note: '' },
+                { from: 'HIT Square', time: '19:30', note: '' },
+                { from: 'HIT Square', time: '20:00', note: '' },
+                { from: 'HIT Square', time: '20:30', note: '' },
+                ...generateIntervalTimes('21:00', '22:30', 10).map(time => ({ from: 'HIT Square', time, note: 'Peak Hours' })),
+                { from: 'HIT Square', time: '23:00', note: '' },
+                { from: 'HIT Square', time: '23:30', note: '' }
+            ],
+            hong_to_hitsz: [
+                ...generateIntervalTimes('07:10', '09:40', 10).map(time => ({ from: 'Courier Frontdoor', time, note: 'Peak Hours' })),
+                { from: 'Courier Frontdoor', time: '10:00', note: '' },
+                { from: 'Courier Frontdoor', time: '10:30', note: '' },
+                { from: 'Courier Frontdoor', time: '11:00', note: '' },
+                { from: 'Courier Frontdoor', time: '11:30', note: '' },
+                ...generateIntervalTimes('12:00', '15:30', 10).map(time => ({ from: 'Courier Frontdoor', time, note: 'Peak Hours' })),
+                { from: 'Courier Frontdoor', time: '16:00', note: '(2 buses)' },
+                { from: 'Courier Frontdoor', time: '16:30', note: '' },
+                { from: 'Courier Frontdoor', time: '17:00', note: '' },
+                ...generateIntervalTimes('17:30', '18:45', 15).map(time => ({ from: 'Courier Frontdoor', time, note: '' })),
+                { from: 'Courier Frontdoor', time: '19:00', note: '' },
+                { from: 'Courier Frontdoor', time: '19:30', note: '' },
+                { from: 'Courier Frontdoor', time: '20:00', note: '' },
+                ...generateIntervalTimes('20:40', '22:30', 10).map(time => ({ from: 'Courier Frontdoor', time, note: 'Peak Hours' })),
+                { from: 'Courier Frontdoor', time: '23:00', note: '' },
+                { from: 'Courier Frontdoor', time: '23:30', note: '' },
+                { from: 'Courier Frontdoor', time: '24:00', note: '' }
+            ]
+        };
+
+        // Unified base schedule for Weekend/Holiday (same for both directions)
+        const weekendBaseSchedule = [
+            ...generateIntervalTimes('07:30', '09:30', 15).map(time => ({ time, note: 'Peak Hours' })),
+            { time: '10:00', note: '' },
+            { time: '10:30', note: '' },
+            { time: '11:00', note: '' },
+            { time: '11:30', note: '' },
+            ...generateIntervalTimes('12:00', '15:00', 30).map(time => ({ time, note: 'Peak Hours' })),
+            { time: '15:30', note: '' },
+            { time: '16:00', note: '' },
+            { time: '16:30', note: '' },
+            { time: '17:00', note: '' },
+            { time: '17:30', note: '' },
+            ...generateIntervalTimes('18:00', '21:00', 30).map(time => ({ time, note: 'Peak Hours' })),
+            { time: '21:30', note: '' },
+            { time: '22:00', note: '' },
+            { time: '22:30', note: '' },
+            { time: '23:00', note: '' },
+            { time: '23:30', note: '' }
+        ];
+
+        // Schedule data - Weekend/Holiday
+        const weekendSchedule = {
+            hitsz_to_hong: weekendBaseSchedule.map(item => ({ from: 'HIT Square', ...item })),
+            hong_to_hitsz: [
+                ...weekendBaseSchedule.map(item => ({ from: 'Courier Frontdoor', ...item })),
+                { from: 'Courier Frontdoor', time: '24:00', note: '' }
+            ]
+        };
+
+        let currentScheduleType = 'workday';
+
+        function timeToMinutes(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours * 60 + minutes;
+        }
+
+        function getCurrentTimeInMinutes() {
+            const now = new Date();
+            return now.getHours() * 60 + now.getMinutes();
+        }
+
+        function updateDateTime() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            
+            document.getElementById('current-time').textContent = `${hours}:${minutes}:${seconds}`;
+            
+            const dateStr = now.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            document.getElementById('current-date').textContent = dateStr;
+            document.getElementById('last-update').textContent = `${hours}:${minutes}:${seconds}`;
+        }
+
+        function renderSchedule(scheduleData, elementId, scheduleDirection) {
+            const tbody = document.getElementById(elementId);
+            tbody.innerHTML = '';
+            
+            const currentTimeMinutes = getCurrentTimeInMinutes();
+            const schedule = currentScheduleType === 'workday' ? 
+                (scheduleDirection === 'hh' ? scheduleData.workdaySchedule.hitsz_to_hong : scheduleData.workdaySchedule.hong_to_hitsz) :
+                (scheduleDirection === 'hh' ? scheduleData.weekendSchedule.hitsz_to_hong : scheduleData.weekendSchedule.hong_to_hitsz);
+
+            schedule.forEach(departure => {
+                const departureMinutes = timeToMinutes(departure.time);
+                const isDeparted = currentTimeMinutes >= departureMinutes;
+                const isUpcoming = !isDeparted && (departureMinutes - currentTimeMinutes <= 30);
+
+                const row = document.createElement('tr');
+                if (isDeparted) {
+                    row.style.opacity = '0.6';
+                } else if (isUpcoming) {
+                    row.classList.add('upcoming');
+                }
+
+                const timeCell = document.createElement('td');
+                timeCell.className = 'time-cell';
+                if (isDeparted) {
+                    timeCell.classList.add('departed');
+                }
+                timeCell.textContent = departure.time;
+
+                const statusCell = document.createElement('td');
+                statusCell.className = 'status-cell';
+                
+                if (isDeparted) {
+                    statusCell.classList.add('departed');
+                    statusCell.textContent = 'Departed';
+                } else {
+                    statusCell.classList.add('departure-cell');
+                    statusCell.textContent = 'Upcoming';
+                }
+
+                row.appendChild(timeCell);
+                row.appendChild(statusCell);
+                tbody.appendChild(row);
+            });
+        }
+
+        function switchSchedule(type) {
+            currentScheduleType = type;
+            
+            document.querySelectorAll('.btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            renderScheduleAll();
+        }
+
+        function renderScheduleAll() {
+            const data = { workdaySchedule, weekendSchedule };
+            renderSchedule(data, 'schedule-hh-body', 'hh');
+            renderSchedule(data, 'schedule-zh-body', 'zh');
+        }
+
+        // Update every second
+        setInterval(() => {
+            updateDateTime();
+            renderScheduleAll();
+        }, 1000);
+
+        // Initial render
+        updateDateTime();
+        renderScheduleAll();
+    </script>
+</body>
+</html>
